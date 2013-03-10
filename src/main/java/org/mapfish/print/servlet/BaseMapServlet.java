@@ -29,10 +29,11 @@ import javax.servlet.http.HttpServlet;
 
 import org.apache.log4j.Logger;
 import org.mapfish.print.MapPrinter;
-import org.mapfish.print.config.ConfigFactory;
-import org.mapfish.print.output.OutputFactory;
+import org.mapfish.print.ShellMapPrinter;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
-//import org.springframework.web.context.support.WebApplicationContextUtils;
 
 /**
  * Base class for MapPrinter servlets (deals with the configuration loading)
@@ -42,11 +43,12 @@ public abstract class BaseMapServlet extends HttpServlet {
 
     public static final Logger LOGGER = Logger.getLogger(BaseMapServlet.class);
 
-    private MapPrinter printer = null;
     private Map<String, MapPrinter> printers = null;
     private long lastModified = 0L;
     private long defaultLastModified = 0L;
     private Map<String,Long> lastModifieds = null;
+
+    private volatile ApplicationContext context;
 
     /**
      * Builds a MapPrinter instance out of the file pointed by the servlet's
@@ -65,7 +67,8 @@ public abstract class BaseMapServlet extends HttpServlet {
             throw new ServletException("Missing configuration in web.xml 'web-app/servlet/init-param[param-name=config]' or 'web-app/context-param[param-name=config]'");
         }
         //String debugPath = "";
-
+        
+        MapPrinter printer = null;
         File configFile = null;
         if (app != null) {
         	if (lastModifieds == null) {
@@ -79,11 +82,7 @@ public abstract class BaseMapServlet extends HttpServlet {
     			printer = null;
     			//debugPath += "printer = null 1\n";
     		}
-            if(app.toLowerCase().endsWith(".yaml")) {
-                configFile = new File(app);
-            } else {
-                configFile = new File(app +".yaml");
-            }
+            configFile = new File(app);
         } else {
         	configFile = new File(configPath);
         	//debugPath += "configFile = new ..., 1\n";
@@ -91,9 +90,17 @@ public abstract class BaseMapServlet extends HttpServlet {
         if (!configFile.isAbsolute()) {
         	if (app != null) {
         		//debugPath += "config is absolute app = "+app+"\n";
-        		configFile = new File(getServletContext().getRealPath(app +".yaml"));
+        		if(app.toLowerCase().endsWith(".yaml")) {
+        			configFile = new File(getServletContext().getRealPath(app));
+        		} else {
+        			configFile = new File(getServletContext().getRealPath(app +".yaml"));
+        		}
         	} else {
-        		configFile = new File(getServletContext().getRealPath(configPath));
+        		if(configPath.toLowerCase().endsWith(".yaml")) {
+        			configFile = new File(getServletContext().getRealPath(configPath));
+        		} else {
+        			configFile = new File(getServletContext().getRealPath(configPath+".yaml"));
+        		}
         		//debugPath += "config is absolute app DEFAULT\n";
         	}
         }
@@ -140,32 +147,7 @@ public abstract class BaseMapServlet extends HttpServlet {
             //debugPath += "printer == null, lastModified from configFile = "+lastModified+"\n";
             try {
                 LOGGER.info("Loading configuration file: " + configFile.getAbsolutePath());
-                //printer = WebApplicationContextUtils.getWebApplicationContext(getServletContext()).getBean(MapPrinter.class).setYamlConfigFile(configFile);
-                /*
-                 * The above line introduces a bug: When printing with two
-                 * applications, say using app-a.yaml and app-b.yaml, 
-                 * when printing app-a it works, then printing app-b, works.
-                 * Then printing app-a again, it prints as configured with
-                 * app-b.
-                 * 
-                 * We do not need DI if this class depends on MapPrinter 
-                 * anyway which it does through the .setYamlConfigFile method
-                 * and the call to MapPrinter.class. I guess in the future
-                 * we could implement an interface and define that in the
-                 * spring-application-context.xml file to take advantage of
-                 * DI's power, but without an interface DI just introduces
-                 * unnecessary complexity.
-                 * 
-                 * This class now depends on ConfigFactory and OutputFactory
-                 * as well. This is not ideal. If we want to DI everything
-                 * we should take advantage of interfaces. Otherwise I cannot
-                 * see the point of DI, because it is mainly to be able to
-                 * unit test things.
-                 */
-                printer = new MapPrinter();
-                printer.setOutputFactory(WebApplicationContextUtils.getWebApplicationContext(getServletContext()).getBean(OutputFactory.class));
-                printer.setConfigFactory(WebApplicationContextUtils.getWebApplicationContext(getServletContext()).getBean(ConfigFactory.class));
-                printer.setYamlConfigFile(configFile);
+                printer = getApplicationContext().getBean(MapPrinter.class).setYamlConfigFile(configFile);
                 if (app != null) {
                 	if (printers == null) {
                 		printers = new HashMap<String, MapPrinter>();
@@ -179,10 +161,30 @@ public abstract class BaseMapServlet extends HttpServlet {
                 throw new ServletException("Cannot read configuration file: " + configPath, e);
             } catch (Throwable e) {
                 LOGGER.error("Error occurred while reading configuration file", e);
+                throw new ServletException("Error occurred while reading configuration file '" + configFile + "': " + e );
             }
         }
         
         return printer;
+    }
+
+    private ApplicationContext getApplicationContext() {
+        if (this.context == null) {
+            synchronized (this) {
+                if (this.context == null) {
+                    this.context = WebApplicationContextUtils.getWebApplicationContext(getServletContext());
+                    if (this.context == null || context.getBean(MapPrinter.class) == null) {
+                        String springConfig = System.getProperty("mapfish.print.springConfig");
+                        if(springConfig != null) {
+                            this.context = new FileSystemXmlApplicationContext(new String[]{"classpath:/"+ShellMapPrinter.DEFAULT_SPRING_CONTEXT, springConfig});
+                        } else {
+                            this.context = new ClassPathXmlApplicationContext(ShellMapPrinter.DEFAULT_SPRING_CONTEXT);
+                        }
+                    }
+                }
+            }
+        }
+        return this.context;
     }
 
 }
