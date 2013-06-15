@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Camptocamp
+ * Copyright (C) 2013  Camptocamp
  *
  * This file is part of MapFish Print
  *
@@ -136,7 +136,7 @@ public class MapBlock extends Block {
             //         (maxY - minY) / (DistanceUnit.PT.convertTo(height, unitEnum))));
         }
 
-        if (!context.getConfig().isScalePresent(scale)) {
+        if (!context.getConfig().isDisableScaleLocking() && !context.getConfig().isScalePresent(scale)) {
             throw new InvalidJsonValueException(params, "scale", scale);
         }
 

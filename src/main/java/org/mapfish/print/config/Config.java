@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Camptocamp
+ * Copyright (C) 2013  Camptocamp
  *
  * This file is part of MapFish Print
  *
@@ -20,6 +20,7 @@
 package org.mapfish.print.config;
 
 //import org.apache.commons.httpclient.HostConfiguration;
+import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
@@ -30,9 +31,9 @@ import java.net.UnknownHostException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.TreeSet;
-import java.util.HashMap;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethodBase;
@@ -56,7 +57,7 @@ import org.pvalsecc.concurrent.OrderedResultsExecutor;
 /**
  * Bean mapping the root of the configuration file.
  */
-public class Config {
+public class Config implements Closeable {
     public static final Logger LOGGER = Logger.getLogger(Config.class);
 
     private Layouts layouts;
@@ -83,6 +84,7 @@ public class Config {
     private int connectionTimeout = 40*60*1000; // 40 minutes //30*1000;
 
     private boolean tilecacheMerging = false;
+    private boolean disableScaleLocking = false;
     
     private List<SecurityStrategy> security = Collections.emptyList();
 
@@ -285,13 +287,20 @@ public class Config {
      * @return The first scale that is bigger or equal than the target.
      */
     public int getBestScale(double target) {
-        target *= BEST_SCALE_TOLERANCE;
-        for (Integer scale : scales) {
-            if (scale >= target) {
-                return scale;
-            }
+        if (this.disableScaleLocking) {
+            Double forcedScale = target;
+            return forcedScale.intValue();
         }
-        return scales.last();
+        else {
+            target *= BEST_SCALE_TOLERANCE;
+            for (Integer scale : scales) {
+                if (scale >= target) {
+                    return scale;
+                }
+            }
+            return scales.last();
+        }
+
     }
 
     public synchronized OrderedResultsExecutor<MapTileTask> getMapRenderingExecutor() {
@@ -305,14 +314,19 @@ public class Config {
     /**
      * Stop all the threads and stuff used for this config.
      */
-    public synchronized void stop() {
-        WMSServerInfo.clearCache();
-        if (mapRenderingExecutor != null) {
-            mapRenderingExecutor.stop();
-        }
-
-        if(connectionManager != null) {
-            connectionManager.shutdown();
+    public synchronized void close() {
+        try {
+            WMSServerInfo.clearCache();
+        } finally {
+            try {
+                if (mapRenderingExecutor != null) {
+                    mapRenderingExecutor.stop();
+                }
+            } finally {
+                if (connectionManager != null) {
+                    connectionManager.shutdown();
+                }
+            }
         }
     }
 
@@ -376,6 +390,14 @@ public class Config {
 
     public boolean isTilecacheMerging() {
         return tilecacheMerging;
+    }
+
+    public void setDisableScaleLocking(boolean disableScaleLocking) {
+        this.disableScaleLocking = disableScaleLocking;
+    }
+
+    public boolean isDisableScaleLocking() {
+        return disableScaleLocking;
     }
 
     public void setSocketTimeout(int socketTimeout) {

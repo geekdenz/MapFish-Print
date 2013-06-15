@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Camptocamp
+ * Copyright (C) 2013  Camptocamp
  *
  * This file is part of MapFish Print
  *
@@ -61,7 +61,23 @@ public class TmsMapReader extends TileableMapReader {
           extension = format.trim();
         }
         layerName = params.getString("layer");
-        tileCacheLayerInfo = new TmsLayerInfo(params.getJSONArray("resolutions"), tileSize.getInt(0), tileSize.getInt(1), maxExtent.getFloat(0), maxExtent.getFloat(1), maxExtent.getFloat(2), maxExtent.getFloat(3), extension);
+
+        PJsonObject tileOrigin = ( params.has("tileOrigin") ? params.getJSONObject("tileOrigin") : params.optJSONObject("origin") );
+        final float originX;
+        final float originY ;
+
+        if(tileOrigin == null || (!tileOrigin.has("x") && !tileOrigin.has("lon"))){
+            originX = 0.0f;
+        }else{
+            originX = tileOrigin.has("x") ? tileOrigin.getFloat("x") : tileOrigin.getFloat("lon");
+        }
+        if(tileOrigin == null || (!tileOrigin.has("y") && !tileOrigin.has("lat"))){
+            originY = 0.0f;
+        }else{
+            originY = tileOrigin.has("y") ? tileOrigin.getFloat("y") : tileOrigin.getFloat("lat");
+        }
+
+        tileCacheLayerInfo = new TmsLayerInfo(params.getJSONArray("resolutions"), tileSize.getInt(0), tileSize.getInt(1), maxExtent.getFloat(0), maxExtent.getFloat(1), maxExtent.getFloat(2), maxExtent.getFloat(3), extension, originX, originY);
     }
 
     protected TileRenderer.Format getFormat() {

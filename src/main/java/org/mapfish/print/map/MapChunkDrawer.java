@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Camptocamp
+ * Copyright (C) 2013  Camptocamp
  *
  * This file is part of MapFish Print
  *
@@ -72,7 +72,7 @@ public class MapChunkDrawer extends ChunkDrawer {
         PJsonArray layers = parent.getJSONArray("layers");
         String srs = parent.getString("srs");
 
-        if (!context.getConfig().isScalePresent(transformer.getScale())) {
+        if (!context.getConfig().isDisableScaleLocking() && !context.getConfig().isScalePresent(transformer.getScale())) {
             throw new InvalidJsonValueException(params, "scale", transformer.getScale());
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Camptocamp
+ * Copyright (C) 2013  Camptocamp
  *
  * This file is part of MapFish Print
  *
@@ -25,6 +25,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.TreeSet;
+import java.util.Collections;
 
 import org.mapfish.print.config.Config;
 import org.mapfish.print.config.layout.Block;
@@ -52,14 +53,27 @@ public abstract class PdfTestCase extends PrintTestCase {
     }
 
     @SuppressWarnings("deprecation")
-	@Override
+    @Override
     protected void setUp() throws Exception {
         super.setUp();
         PJsonObject spec = MapPrinter.parseSpec(FileUtilities.readWholeTextFile(new File("samples/spec.json")));
         spec.getInternalObj().put("units", "meters");
 
         doc = new Document(PageSize.A4);
+
+        //This test expects to be able to write files into the same directory the classes
+        //are compiled to, in this case the build/classes/test directory
+        String expectedPath = "build"+File.separator + "classes" + File.separator + "test";
         String baseDir = PdfTestCase.class.getClassLoader().getResource(".").getFile();
+        if(baseDir.indexOf("pulse-java.jar") != -1){
+            String[] paths = System.getProperty("java.class.path").split(File.pathSeparator);
+
+            for(String path : paths){
+               if(path.indexOf(expectedPath) != -1){
+                   baseDir = path;
+               }
+           }
+        }
         outFile = new FileOutputStream(baseDir + getClass().getSimpleName() + "_" + getName() + ".pdf");
         writer = PdfWriter.getInstance(doc, outFile);
         writer.setFullCompression();
@@ -88,8 +102,12 @@ public abstract class PdfTestCase extends PrintTestCase {
         mainPage.setItems(new ArrayList<Block>(Arrays.asList(mapBlock)));
         layout.setMainPage(mainPage);
         Config config = new Config();
+        try {
         config.setDpis(new TreeSet<Integer>(Arrays.asList(96, 190, 254)));
         config.setScales(new TreeSet<Integer>(Arrays.asList(20000, 25000, 100000, 500000, 4000000)));
-        context = new RenderingContext(doc, writer, config, spec, null, layout, null);
+        context = new RenderingContext(doc, writer, config, spec, null, layout, Collections.<String, String>emptyMap());
+        } finally {
+            config.close();
+        }
     }
 }

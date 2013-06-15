@@ -12,7 +12,6 @@ apply plugin: 'project-report'
 
 defaultTasks 'test', 'jar', 'war', 'imageMagickWar', 'standalone', 'install'
 
-def MAPFISH_REPO='http://dev.mapfish.org/maven/repository'
 repositories {
   mavenRepo url: "http://download.osgeo.org/webdav/geotools"
   mavenCentral()
@@ -41,7 +40,19 @@ dependencies {
   proguard 'net.sf.proguard:proguard:4.4'
 }
 
-manifest.mainAttributes('Main-Class':'org.mapfish.print.ShellMapPrinter', 'Build-Time': new Date().getDateTimeString())
+def gitRevision() {
+	try {
+		def cmd = "git rev-parse HEAD"
+		def proc = cmd.execute()
+		return proc.getText()
+	} catch (Exception e) {
+		return "Error occurred while trying to execute git commandline tool: "+e
+	}
+}
+manifest.mainAttributes(
+	'Main-Class':'org.mapfish.print.ShellMapPrinter', 
+	'Build-Time': new Date().getDateTimeString(),
+	'git-revision': gitRevision())
 
 sourceCompatibility = 1.6
 targetCompatibility = 1.6
@@ -55,11 +66,15 @@ jar {
 
 war {
   baseName = "print-servlet"
-  manifest.mainAttributes('Build-Time': new Date().getDateTimeString())
+  manifest.mainAttributes(
+	'Build-Time': new Date().getDateTimeString(),
+	'git-revision': gitRevision())
 }
 task imageMagickWar (type: War) {
   baseName = "print-servlet"
-  manifest.mainAttributes('Build-Time': new Date().getDateTimeString())
+  manifest.mainAttributes(
+	'Build-Time': new Date().getDateTimeString(),
+	'git-revision': gitRevision())
   classifier = "IMG-MAGICK"
   from fileTree('sample-spring/imagemagick')
 }
@@ -114,25 +129,38 @@ task standalone (type: Jar) {
   
 }
 
-task javadocJar(type: Jar, dependsOn: javadoc) {
+task libJavadocJar(type: Jar, dependsOn: javadoc) {
+    baseName = 'print-lib'
     classifier = 'javadoc'
     from 'build/docs/javadoc'
 }
  
-task sourcesJar(type: Jar) {
+task libSourcesJar(type: Jar) {
+    baseName = 'print-lib'
+    from sourceSets.main.allSource
+    classifier = 'sources'
+}
+
+task standaloneJavadocJar(type: Jar, dependsOn: javadoc) {
+    baseName = 'print-standalone'
+    classifier = 'javadoc'
+    from 'build/docs/javadoc'
+}
+ 
+task standaloneSourcesJar(type: Jar) {
+    baseName = 'print-standalone'
     from sourceSets.main.allSource
     classifier = 'sources'
 }
 
 task show << {
 //    sourceSets.main.classes.asFileTree.each {println it}
-println version
+println gitRevision()
 }
-show.description = 'For debugging build script.  shows some debug information'
-
 artifacts {
-  archives jar, war, imageMagickWar, standalone, javadocJar, sourcesJar
+  archives jar, war, imageMagickWar, standalone, libSourcesJar, libJavadocJar, standaloneSourcesJar, standaloneJavadocJar
 }
+
 def artifactFilterMapping = ['lib':'print-lib', 'standalone':'print-standalone', 'war':'print-servlet']
 configure(install.repositories.mavenInstaller) {
   artifactFilterMapping.each {entry ->
@@ -237,6 +265,10 @@ if (Boolean.parseBoolean(enablePublishing)) {
       }
     }
   }
+} else {
+	uploadArchives << {
+		throw new IllegalStateException("Cannot upload archives because enablePublishing property is not true.  It is $enablePublishing")
+	}
 }
 
 /*
