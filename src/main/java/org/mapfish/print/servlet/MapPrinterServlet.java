@@ -33,6 +33,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -94,7 +95,9 @@ public class MapPrinterServlet extends BaseMapServlet {
 
     protected void doPost(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws ServletException, IOException {
         final String additionalPath = httpServletRequest.getPathInfo();
-        if (additionalPath.equals(CREATE_URL)) {
+        if (additionalPath.equals(PRINT_URL)) {
+            createAndGetPDF(httpServletRequest, httpServletResponse);
+        } else if (additionalPath.equals(CREATE_URL)) {
             createPDF(httpServletRequest, httpServletResponse, getBaseUrl(httpServletRequest));
         } else {
             error(httpServletResponse, "Unknown method: " + additionalPath, 404);
@@ -126,18 +129,28 @@ public class MapPrinterServlet extends BaseMapServlet {
      */
     protected void createAndGetPDF(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         //get the spec from the query
+        TempFile tempFile = null;
+        String spec = null;
         try {
             httpServletRequest.setCharacterEncoding("UTF-8");
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
-        final String spec = httpServletRequest.getParameter("spec");
+        if (httpServletRequest.getMethod() == "POST") {
+            try {
+                spec = getSpecFromPostBody(httpServletRequest);
+            } catch (IOException e) {
+                error(httpServletResponse, "Missing 'spec' in request body", 500);
+                return;
+            }
+        } else {
+            spec = httpServletRequest.getParameter("spec");
+        }
         if (spec == null) {
             error(httpServletResponse, "Missing 'spec' parameter", 500);
             return;
         }
 
-        TempFile tempFile = null;
         try {
             tempFile = doCreatePDFFile(spec, httpServletRequest);
             sendPdfFile(httpServletResponse, tempFile, Boolean.parseBoolean(httpServletRequest.getParameter("inline")));
@@ -290,15 +303,22 @@ public class MapPrinterServlet extends BaseMapServlet {
             app = null;
         }
 
+        MapPrinter mapPrinter = getMapPrinter(app);
+
         Map<String, String> headers = new HashMap<String, String>();
-        if (httpServletRequest.getHeader("Referer") != null) {
-            headers.put("Referer", httpServletRequest.getHeader("Referer"));
+        TreeSet<String> configHeaders = mapPrinter.getConfig().getHeaders();
+        if (configHeaders == null) {
+            configHeaders = new TreeSet<String>();
+            configHeaders.add("Referer");
+            configHeaders.add("Cookie");
         }
-        if (httpServletRequest.getHeader("Cookie") != null) {
-            headers.put("Cookie", httpServletRequest.getHeader("Cookie"));
+        for (Iterator<String> header_iter = mapPrinter.getConfig().getHeaders().iterator() ; header_iter.hasNext() ; ) {
+            String header = header_iter.next();
+            if (httpServletRequest.getHeader(header) != null) {
+                headers.put(header, httpServletRequest.getHeader(header));
+            }
         }
 
-        MapPrinter mapPrinter = getMapPrinter(app);
         final OutputFormat outputFormat = mapPrinter.getOutputFormat(specJson);
         //create a temporary file that will contain the PDF
         final File tempJavaFile = File.createTempFile(TEMP_FILE_PREFIX, "."+outputFormat.getFileSuffix()+TEMP_FILE_SUFFIX, getTempDir());
