@@ -38,7 +38,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
 import org.apache.log4j.Logger;
-import org.json.JSONException;
 import org.mapfish.print.InvalidValueException;
 import org.mapfish.print.PDFUtils;
 import org.mapfish.print.RenderingContext;
@@ -53,8 +52,8 @@ import org.mapfish.print.utils.PJsonObject;
  */
 public class LegendsBlock extends Block {
     public static final Logger LOGGER = Logger.getLogger(LegendsBlock.class);
-    private static String tempDir = System.getProperty("java.io.tmpdir");
-    private static String fileSeparator = System.getProperty("file.separator");
+    private static final String tempDir = System.getProperty("java.io.tmpdir");
+    private static final String fileSeparator = System.getProperty("file.separator");
 
     private boolean borders = false; // for debugging or seeing effects
     private float maxWidth = Float.MAX_VALUE; // so setting max value!
@@ -88,6 +87,10 @@ public class LegendsBlock extends Block {
 
     /**
      * Render the legends block
+	 * @param params
+	 * @param target
+	 * @param context
+	 * @throws com.lowagie.text.DocumentException
      * @see org.mapfish.print.config.layout.Block#render(
      *              org.mapfish.print.utils.PJsonObject,
      *              org.mapfish.print.config.layout.Block.PdfElement,
@@ -114,22 +117,22 @@ public class LegendsBlock extends Block {
          * This is important for long legend texts which wrap.
          */
         private String tempFilename;
-        private Document tempDocument = new Document();
+        private final Document tempDocument = new Document();
         private PdfWriter writer;
 
-        private RenderingContext context;
+        private final RenderingContext context;
 
         // all the pdf columns
-        private ArrayList<PdfPTable> columns = new ArrayList<PdfPTable>();
+        private ArrayList<PdfPTable> columns = new ArrayList<>();
         // all the columns width
-        private ArrayList<Float> columnsWidth = new ArrayList<Float>();
+        private final ArrayList<Float> columnsWidth = new ArrayList<>();
         // the current column
         private PdfPTable column;
         // the current column height
-        private int currentColumnIndex = 0;
+        private final int currentColumnIndex = 0;
         private float maxActualImageWidth = 0;
         private float maxActualTextWidth = 0;
-        private ArrayList<LegendItemTable> legendItems = new ArrayList<LegendItemTable>();
+        private final ArrayList<LegendItemTable> legendItems = new ArrayList<>();
         // optimum widths are used to compute the best possible widths of legend
         // items
         private float optimumIconCellWidth = 0f;
@@ -161,7 +164,7 @@ public class LegendsBlock extends Block {
 
         public void render(PdfElement target) throws DocumentException {
             //float optimumTextWidthWithoutIcon = 0f;
-            int numColumns = 1;
+            int numColumns;
             absoluteWidths = new float[1];
 
             // create the legend
@@ -210,7 +213,7 @@ public class LegendsBlock extends Block {
                              * maxColumnWidth has changed!
                              */
                             column = getDefaultOuterTable(1);
-                            columns = new ArrayList<PdfPTable>(columnsSize);
+                            columns = new ArrayList<>(columnsSize);
                             columns.add(column);
                             i = -1;
                             setOptimumCellWidths(maxColumnWidth);
@@ -431,7 +434,7 @@ public class LegendsBlock extends Block {
             }
 
             absoluteWidths = null;
-            LegendItemTable legendItemTable = null;
+            LegendItemTable legendItemTable;
             if (haveNoIcon) {
                 legendItemTable = new LegendItemTable(1);
                 absoluteWidths = new float[1];
@@ -618,7 +621,7 @@ public class LegendsBlock extends Block {
     /**
      * maximum width a legend icon/image can have
      * currently SVG icons are scaled to fit this
-     * @param iconMaxWidth
+	 * @param maxIconWidth
      */
     public void setIconMaxWidth(double maxIconWidth) {
         this.iconMaxWidth = (float)maxIconWidth;
@@ -634,7 +637,7 @@ public class LegendsBlock extends Block {
      * maximum height of legend icon/image
      * currently SVG icons get scaled to this
      * if not present icons get scaled preserving ratio with iconMaxWidth
-     * @param iconMaxHeight float &gt;0.0
+	 * @param maxIconHeight
      */
     public void setIconMaxHeight(double maxIconHeight) {
         this.iconMaxHeight = getMaxValueIfZero((float)maxIconHeight, "maxIconHeight");
