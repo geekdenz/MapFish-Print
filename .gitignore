@@ -5,3 +5,4 @@ buildSrc/build/
 deploy.sh
 *.class
 /.nb-gradle/profiles/private/
+/.nb-gradle-properties
