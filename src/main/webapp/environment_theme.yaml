@@ -190,8 +190,10 @@ layouts:
               inline: true
 
               defaultScale: 0.5
-              iconMaxWidth: 80
-              iconMaxHeight: 80
+              #iconMaxWidth: 80
+              #iconMaxHeight: 80
+              iconMaxWidth: 240
+              iconMaxHeight: 240
               iconPadding: 3 0 0 0
 
               textMaxWidth: 300
@@ -344,8 +346,10 @@ layouts:
               inline: true
 
               defaultScale: 0.5
-              iconMaxWidth: 60
-              iconMaxHeight: 40
+              iconMaxWidth: 240
+              iconMaxHeight: 240
+              #iconMaxWidth: 60
+              #iconMaxHeight: 40
               iconPadding: 3 0 0 0
 
               textMaxWidth: 300
@@ -492,8 +496,10 @@ layouts:
               inline: true
 
               defaultScale: 0.5
-              iconMaxWidth: 60
-              iconMaxHeight: 40
+              iconMaxWidth: 240
+              iconMaxHeight: 240
+              #iconMaxWidth: 60
+              #iconMaxHeight: 40
               iconPadding: 3 0 0 0
 
               textMaxWidth: 300
@@ -624,8 +630,10 @@ layouts:
               inline: true
 
               defaultScale: 0.5
-              iconMaxWidth: 60
-              iconMaxHeight: 40
+              iconMaxWidth: 240
+              iconMaxHeight: 240
+              #iconMaxWidth: 60
+              #iconMaxHeight: 40
               iconPadding: 3 0 0 0
 
               textMaxWidth: 300
