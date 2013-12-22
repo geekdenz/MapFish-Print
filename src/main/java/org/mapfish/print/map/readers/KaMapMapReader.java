@@ -37,26 +37,26 @@ import org.mapfish.print.utils.PJsonObject;
  * Support for the protocol using the KaMap tiling method
  */
 public class KaMapMapReader extends TileableMapReader {
-	public static class Factory implements MapReaderFactory {
+    public static class Factory implements MapReaderFactory {
 
-		@Override
-		public List<MapReader> create(String type, RenderingContext context,
-				PJsonObject params) {
-			ArrayList<MapReader> target = new ArrayList<MapReader>();
+        @Override
+        public List<MapReader> create(String type, RenderingContext context,
+                PJsonObject params) {
+            ArrayList<MapReader> target = new ArrayList<MapReader>();
 
-	        String map = params.getString("map");
-	        String group = "";
-	        if (params.has("group")) {
-	            group = params.getString("group");
-	        }
-	        String units = context.getGlobalParams().getString("units");
+            String map = params.getString("map");
+            String group = "";
+            if (params.has("group")) {
+                group = params.getString("group");
+            }
+            String units = context.getGlobalParams().getString("units");
 
-	        target.add(new KaMapMapReader(map, group, units, context, params));
-	    
-			return target;
-		}
+            target.add(new KaMapMapReader(map, group, units, context, params));
+
+            return target;
+        }
     }
-	
+
     private final String map;
     private final String group;
     private final String units;
@@ -80,8 +80,8 @@ public class KaMapMapReader extends TileableMapReader {
         //not much query params for this protocol...
     }
 
-    protected URI getTileUri(URI commonUri, Transformer transformer, float minGeoX, float minGeoY, float maxGeoX, float maxGeoY, long w, long h) throws URISyntaxException, UnsupportedEncodingException {
-        float targetResolution = (maxGeoX - minGeoX) / w;
+    protected URI getTileUri(URI commonUri, Transformer transformer, double minGeoX, double minGeoY, double maxGeoX, double maxGeoY, long w, long h) throws URISyntaxException, UnsupportedEncodingException {
+        double targetResolution = (maxGeoX - minGeoX) / w;
         TileCacheLayerInfo.ResolutionInfo resolution = tileCacheLayerInfo.getNearestResolution(targetResolution);
 
         Math.round((minGeoX - tileCacheLayerInfo.getMinX()) / (resolution.value * w));
