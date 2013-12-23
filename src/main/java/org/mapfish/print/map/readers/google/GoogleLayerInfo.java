@@ -32,23 +32,15 @@ public class GoogleLayerInfo extends TileCacheLayerInfo {
     protected static final double RESOLUTION_TOLERANCE = 1.9;
 
     public GoogleLayerInfo(String resolutions, int width, int height, float minX, float minY, float maxX, float maxY, String format) {
-    	super(resolutions, width, height, minX, minY, maxX, maxY, format);
+        super(resolutions, width, height, minX, minY, maxX, maxY, format);
     }
 
     public GoogleLayerInfo(PJsonArray resolutions, int width, int height, float minX, float minY, float maxX, float maxY, String extension) {
-    	super(resolutions, width, height, minX, minY, maxX, maxY, extension);
+        super(resolutions, width, height, minX, minY, maxX, maxY, extension);
     }
 
-    public ResolutionInfo getNearestResolution(float targetResolution) {
-        int pos = resolutions.length - 1;
-        float result = resolutions[pos];
-        for (int i = resolutions.length - 1; i >= 0; --i) {
-            float cur = resolutions[i];
-            if (cur <= targetResolution * RESOLUTION_TOLERANCE) {
-                result = cur;
-                pos = i;
-            }
-        }
-        return new ResolutionInfo(pos, result);
+    @Override
+    public double getResolutionTolerance() {
+        return RESOLUTION_TOLERANCE;
     }
 }

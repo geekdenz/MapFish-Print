@@ -19,47 +19,49 @@
 
 package org.mapfish.print;
 
+import static org.junit.Assert.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.lowagie.text.DocumentException;
+import org.junit.Test;
 
 public class PDFUtilsTest extends PdfTestCase {
     public static final Logger LOGGER = Logger.getLogger(PDFUtilsTest.class);
     private FakeHttpd httpd;
-    private static final int PORT = 8181;
-
-    public PDFUtilsTest(String name) {
-        super(name);
-    }
+    private final Random random = new Random();
+    private int port;
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
+        port = 8000 + random.nextInt(15000);
         Logger.getLogger("org.apache.commons.httpclient").setLevel(Level.INFO);
         Logger.getLogger("httpclient").setLevel(Level.INFO);
 
         Map<String, FakeHttpd.HttpAnswerer> routings = new HashMap<String, FakeHttpd.HttpAnswerer>();
         routings.put("/500", new FakeHttpd.HttpAnswerer(500, "Server error", "text/plain", "Server error"));
         routings.put("/notImage", new FakeHttpd.HttpAnswerer(200, "OK", "text/plain", "Blahblah"));
-        httpd = new FakeHttpd(PORT, routings);
+        httpd = new FakeHttpd(port, routings);
         httpd.start();
     }
 
     @Override
-    protected void tearDown() throws Exception {
+    public void tearDown() throws Exception {
         httpd.shutdown();
         super.tearDown();
     }
 
+    @Test
     public void testGetImageDirectWMSError() throws URISyntaxException, IOException, DocumentException {
-        URI uri = new URI("http://localhost:" + PORT + "/notImage");
+        URI uri = new URI("http://localhost:" + port + "/notImage");
         try {
             doc.newPage();
             PDFUtils.getImageDirect(context, uri);
@@ -70,8 +72,9 @@ public class PDFUtilsTest extends PdfTestCase {
         }
     }
 
+    @Test
     public void testGetImageDirectHTTPError() throws URISyntaxException, IOException, DocumentException {
-        URI uri = new URI("http://localhost:" + PORT + "/500");
+        URI uri = new URI("http://localhost:" + port + "/500");
         try {
             doc.newPage();
             PDFUtils.getImageDirect(context, uri);
@@ -82,8 +85,9 @@ public class PDFUtilsTest extends PdfTestCase {
         }
     }
 
+    @Test
     public void testPlaceholder() throws URISyntaxException, IOException, DocumentException {
-        URI uri = new URI("http://localhost:" + PORT + "/500");
+        URI uri = new URI("http://localhost:" + port + "/500");
         try {
             doc.newPage();
             PDFUtils.getImageDirect(context, uri);

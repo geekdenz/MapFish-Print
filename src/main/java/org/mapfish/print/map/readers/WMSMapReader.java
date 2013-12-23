@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
 import org.mapfish.print.RenderingContext;
 import org.mapfish.print.Transformer;
 import org.mapfish.print.map.ParallelMapTileLoader;
@@ -44,41 +45,69 @@ import org.pvalsecc.misc.URIUtils;
 public class WMSMapReader extends TileableMapReader {
 
     public static class Factory implements MapReaderFactory {
-		@Override
-		public List<MapReader> create(String type, RenderingContext context, PJsonObject params) {
-			ArrayList<MapReader> target = new ArrayList<MapReader>();
-			PJsonArray layers = params.getJSONArray("layers");
-	        PJsonArray styles = params.optJSONArray("styles");
-	        for (int i = 0; i < layers.size(); i++) {
-	            String layer = layers.getString(i);
-	            String style = "";
-	            if (styles != null && i < styles.size()) {
-	                style = styles.getString(i);
-	            }
-	            target.add(new WMSMapReader(layer, style, context, params));
-	        }
+        @Override
+        public List<MapReader> create(String type, RenderingContext context, PJsonObject params) {
+            ArrayList<MapReader> target = new ArrayList<MapReader>();
+            PJsonArray layers = params.getJSONArray("layers");
+            PJsonArray styles = params.optJSONArray("styles");
 	        
-	        return target;
+	        String filter = getCqlFilter(params);
+	        
+            for (int i = 0; i < layers.size(); i++) {
+                String layer = layers.getString(i);
+                String style = "";
+                if (styles != null && i < styles.size()) {
+                    style = styles.getString(i);
+                }
+	            
+	            target.add(new WMSMapReader(layer, style, filter, context, params));
+            }
+
+            return target;
+        }
+
+		private String getCqlFilter(PJsonObject params) {
+			PJsonObject customParams = params.optJSONObject("customParams");
+			if(customParams != null ) {
+				String filter = customParams.optString("cql_filter");
+				if(filter == null) {
+					filter = customParams.optString("CQL_FILTER");
+				}				
+				if(filter == null) {
+					filter = "INCLUDE";
+				}
+				return filter;
+			}
+			return "INCLUDE";
 		}
     	
     }
     
+    protected boolean skipCustomParam(String key) {
+		return key.equalsIgnoreCase("CQL_FILTER");
+	}
+
     public static final Logger LOGGER = Logger.getLogger(WMSMapReader.class);
     private final String format;
     protected final List<String> layers = new ArrayList<String>();
 
     private final List<String> styles = new ArrayList<String>();
+    
+    protected final List<String> filters = new ArrayList<String>();
 
-    private WMSMapReader(String layer, String style, RenderingContext context, PJsonObject params) {
+    private WMSMapReader(String layer, String style, String filter, RenderingContext context, PJsonObject params) {
         super(context, params);
         layers.add(layer);
         tileCacheLayerInfo = WMSServerInfo.getInfo(baseUrl, context).getTileCacheLayer(layer);
         styles.add(style);
+        filters.add(filter);
         format = params.getString("format");
     }
 
     protected TileRenderer.Format getFormat() {
-        if (format.equals("image/svg+xml")) {
+    	if(format.equals("test")) {
+    		return TileRenderer.Format.TEST;
+    	} else if (format.equals("image/svg+xml")) {
             return TileRenderer.Format.SVG;
         } else if (format.equals("application/pdf") || format.equals("application/x-pdf")) {
             return TileRenderer.Format.PDF;
@@ -89,7 +118,15 @@ public class WMSMapReader extends TileableMapReader {
 
     public void render(Transformer transformer, ParallelMapTileLoader parallelMapTileLoader, String srs, boolean first) {
         PJsonObject customParams = params.optJSONObject("customParams");
-        
+        String version = params.optString("version", null);
+        if (version != null) {
+            try {
+                customParams.getInternalObj().put("VERSION", version);
+            } catch (JSONException e) {
+                // skip
+            }
+        }
+
         // store the rotation to not change for other layers
         double oldAngle = transformer.getRotation();
 
@@ -122,26 +159,39 @@ public class WMSMapReader extends TileableMapReader {
     }
 
     protected void addCommonQueryParams(Map<String, List<String>> result, Transformer transformer, String srs, boolean first) {
-        URIUtils.addParamOverride(result, "FORMAT", format);
-        URIUtils.addParamOverride(result, "LAYERS", StringUtils.join(layers, ","));
-        URIUtils.addParamOverride(result, "SRS", srs);
-        URIUtils.addParamOverride(result, "SERVICE", "WMS");
-        URIUtils.addParamOverride(result, "REQUEST", "GetMap");
-        //URIUtils.addParamOverride(result, "EXCEPTIONS", "application/vnd.ogc.se_inimage");
-        URIUtils.addParamOverride(result, "VERSION", "1.1.1");
+        URIUtils.setParamDefault(result, "FORMAT", format);
+        URIUtils.setParamDefault(result, "LAYERS", StringUtils.join(layers, ","));
+        URIUtils.setParamDefault(result, "SRS", srs);
+        URIUtils.setParamDefault(result, "SERVICE", "WMS");
+        URIUtils.setParamDefault(result, "REQUEST", "GetMap");
+        //URIUtils.setParamDefault(result, "EXCEPTIONS", "application/vnd.ogc.se_inimage");
+        URIUtils.setParamDefault(result, "VERSION", "1.1.1");
         if (!first) {
-            URIUtils.addParamOverride(result, "TRANSPARENT", "true");
+            URIUtils.setParamDefault(result, "TRANSPARENT", "true");
         }
-        URIUtils.addParamOverride(result, "STYLES", StringUtils.join(styles, ","));
+        URIUtils.setParamDefault(result, "STYLES", StringUtils.join(styles, ","));
+        if(hasFilter()) {
+        	URIUtils.addParamOverride(result, "CQL_FILTER", StringUtils.join(filters, ";"));
+        }
         URIUtils.addParamOverride(result, "format_options", "dpi:" + transformer.getDpi()); // For GeoServer
         URIUtils.addParamOverride(result, "map_resolution", String.valueOf(transformer.getDpi())); // For MapServer
     }
 
-    public boolean testMerge(MapReader other) {
+    private boolean hasFilter() {    	
+		for(String filter : filters) {
+			if(!filter.trim().isEmpty() && !filter.trim().equalsIgnoreCase("INCLUDE")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean testMerge(MapReader other) {
         if (canMerge(other)) {
             WMSMapReader wms = (WMSMapReader) other;
             layers.addAll(wms.layers);
             styles.addAll(wms.styles);
+            filters.addAll(wms.filters);
             return true;
         } else {
             return false;
@@ -181,35 +231,35 @@ public class WMSMapReader extends TileableMapReader {
         return true;
     }
 
-    protected URI getTileUri(URI commonUri, Transformer transformer, float minGeoX, float minGeoY, float maxGeoX, float maxGeoY, long w, long h) throws URISyntaxException, UnsupportedEncodingException {
+    protected URI getTileUri(URI commonUri, Transformer transformer, double minGeoX, double minGeoY, double maxGeoX, double maxGeoY, long w, long h) throws URISyntaxException, UnsupportedEncodingException {
 
         Map<String, List<String>> tileParams = new HashMap<String, List<String>>();
         if (format.equals("image/svg+xml")) {
-        	double maxW = context.getConfig().getMaxSvgW(); // config setting in YAML called maxSvgWidth
-        	double maxH = context.getConfig().getMaxSvgH(); // config setting in YAML called maxSvgHeight
-        	double divisor = 1;
-        	double width = transformer.getRotatedSvgW(); // width of the vector map
-        	double height = transformer.getRotatedSvgH(); // height of the vector map
-        	
-        	if (maxW < width || maxH < height) {
-	        	/**
-	        	 *  need to use maxW as divisor, smaller quotient for width means 
-	        	 *  more constraining factor is max width 
-	        	 */
-	        	if (maxW / maxH < width / height) {
-	        		//LOGGER.warn("before width="+width+" height="+height);
-	        		divisor = width / maxW;
-	        		width = maxW;
-	        		height = height / divisor;
-	        		//LOGGER.warn("after width="+width+" height="+height);
-	        	} else {
-	        		//LOGGER.warn("before width="+width+" height="+height);
-	        		divisor = height / maxH;
-	        		height = maxH;
-	        		width = width / divisor;
-	        		//LOGGER.warn("after width="+width+" height="+height);
-	        	}
-        	}
+            double maxW = context.getConfig().getMaxSvgW(); // config setting in YAML called maxSvgWidth
+            double maxH = context.getConfig().getMaxSvgH(); // config setting in YAML called maxSvgHeight
+            double divisor = 1;
+            double width = transformer.getRotatedSvgW(); // width of the vector map
+            double height = transformer.getRotatedSvgH(); // height of the vector map
+
+            if (maxW < width || maxH < height) {
+                /**
+                 *  need to use maxW as divisor, smaller quotient for width means
+                 *  more constraining factor is max width
+                 */
+                if (maxW / maxH < width / height) {
+                    //LOGGER.warn("before width="+width+" height="+height);
+                    divisor = width / maxW;
+                    width = maxW;
+                    height = height / divisor;
+                    //LOGGER.warn("after width="+width+" height="+height);
+                } else {
+                    //LOGGER.warn("before width="+width+" height="+height);
+                    divisor = height / maxH;
+                    height = maxH;
+                    width = width / divisor;
+                    //LOGGER.warn("after width="+width+" height="+height);
+                }
+            }
             URIUtils.addParamOverride(tileParams, "WIDTH", Long.toString((long) Math.round(width)));
             URIUtils.addParamOverride(tileParams, "HEIGHT", Long.toString((long) Math.round(height)));
         } else {

@@ -37,19 +37,19 @@ import org.mapfish.print.utils.PJsonObject;
  */
 public class TileCacheMapReader extends TileableMapReader {
     public static class Factory implements MapReaderFactory {
-		@Override
-		public List<MapReader> create(String type, RenderingContext context,
-				PJsonObject params) {
-			ArrayList<MapReader> target = new ArrayList<MapReader>();
+        @Override
+        public List<MapReader> create(String type, RenderingContext context,
+                PJsonObject params) {
+            ArrayList<MapReader> target = new ArrayList<MapReader>();
 
-			String layer = params.getString("layer");
-	        target.add(new TileCacheMapReader(layer, context, params));
-	        
-			return target;
-		}
-    	
+            String layer = params.getString("layer");
+            target.add(new TileCacheMapReader(layer, context, params));
+
+            return target;
+        }
+
     }
-	
+
     private final String layer;
 
     private TileCacheMapReader(String layer, RenderingContext context, PJsonObject params) {
@@ -68,12 +68,12 @@ public class TileCacheMapReader extends TileableMapReader {
         //not much query params for this protocol...
     }
 
-    protected URI getTileUri(URI commonUri, Transformer transformer, float minGeoX, float minGeoY, float maxGeoX, float maxGeoY, long w, long h) throws URISyntaxException, UnsupportedEncodingException {
-        float targetResolution = (maxGeoX - minGeoX) / w;
+    protected URI getTileUri(URI commonUri, Transformer transformer, double minGeoX, double minGeoY, double maxGeoX, double maxGeoY, long w, long h) throws URISyntaxException, UnsupportedEncodingException {
+        double targetResolution = (maxGeoX - minGeoX) / w;
         TileCacheLayerInfo.ResolutionInfo resolution = tileCacheLayerInfo.getNearestResolution(targetResolution);
 
-        int tileX = Math.round((minGeoX - tileCacheLayerInfo.getMinX()) / (resolution.value * w));
-        int tileY = Math.round((minGeoY - tileCacheLayerInfo.getMinY()) / (resolution.value * h));
+        int tileX = (int) Math.round((minGeoX - tileCacheLayerInfo.getMinX()) / (resolution.value * w));
+        int tileY = (int) Math.round((minGeoY - tileCacheLayerInfo.getMinY()) / (resolution.value * h));
 
         StringBuilder path = new StringBuilder();
         if (!commonUri.getPath().endsWith("/")) {
