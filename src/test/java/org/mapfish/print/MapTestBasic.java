@@ -23,7 +23,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.*;
 
-public abstract class MapTestBasic {
+public abstract class MapTestBasic extends TestCase {
 
     protected final Logger logger = Logger.getLogger(MapTestBasic.class);
 

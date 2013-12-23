@@ -39,10 +39,10 @@ public class WMSMapReaderTest extends MapTestBasic {
             0.0, "EPSG:4326", false);
 	
 	public WMSMapReaderTest(String name) {
-		super(name);		
+		//super(name);		
 	}
 
-	protected void setUp() throws Exception {
+	public void setUp() throws Exception {
         super.setUp();
         
         TestTileRenderer.lastURIs = null;
@@ -61,7 +61,7 @@ public class WMSMapReaderTest extends MapTestBasic {
 
     }
 
-    protected void tearDown() throws Exception {
+    public void tearDown() throws Exception {
 
         super.tearDown();
     }

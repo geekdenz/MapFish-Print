@@ -16,10 +16,9 @@ public class TestTileRenderer extends TileRenderer {
 	public void render(Transformer transformer, List<URI> urls,
 			ParallelMapTileLoader parallelMapTileLoader,
 			RenderingContext context, float opacity, int nbTilesHorizontal,
-			float offsetX, float offsetY, long bitmapTileW, long bitmapTileH)
+			double offsetX, double offsetY, long bitmapTileW, long bitmapTileH)
 			throws IOException {
 		lastURIs = urls;
-
 	}
 
 }
