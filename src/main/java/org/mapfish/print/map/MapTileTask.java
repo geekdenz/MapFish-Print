@@ -24,8 +24,8 @@ import java.io.IOException;
 import org.mapfish.print.RenderingContext;
 import org.pvalsecc.concurrent.OrderedResultsExecutor;
 
-import com.lowagie.text.DocumentException;
-import com.lowagie.text.pdf.PdfContentByte;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.pdf.PdfContentByte;
 
 /**
  * Task for loading and rendering a tile.
@@ -72,5 +72,9 @@ public abstract class MapTileTask implements OrderedResultsExecutor.Task<MapTile
         protected final void readTile() {
             //nothing to do
         }
+    }
+    
+    public Exception getException() {
+    	return readException;
     }
 }

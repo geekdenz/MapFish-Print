@@ -19,7 +19,12 @@
 
 package org.mapfish.print.map.readers;
 
-import static org.junit.Assert.*;
+import org.json.JSONObject;
+import org.junit.Test;
+import org.mapfish.print.PrintTestCase;
+import org.mapfish.print.utils.PJsonObject;
+import org.xml.sax.SAXException;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,11 +32,11 @@ import java.util.Arrays;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.junit.Test;
-import org.mapfish.print.PrintTestCase;
-import org.xml.sax.SAXException;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
-public class WMSServerInfoTest extends PrintTestCase {
+public class WMSServiceInfoTest extends PrintTestCase {
 
     @Test
     public void testParseTileCache() throws IOException, SAXException, ParserConfigurationException {
@@ -112,9 +117,9 @@ public class WMSServerInfoTest extends PrintTestCase {
                 "        </WMT_MS_Capabilities>";
 
         InputStream stream = new ByteArrayInputStream(response.getBytes("ISO-8859-1"));
-        WMSServerInfo info = WMSServerInfo.parseCapabilities(stream);
+        WMSServiceInfo info = new WMSServiceInfo.WMSServiceInfoLoader().parseInfo(stream);
         assertEquals(true, info.isTileCache());
-        TileCacheLayerInfo layerInfo = info.getTileCacheLayer("cn");
+        TileCacheLayerInfo layerInfo = info.getTileCacheLayer("cn", null, new PJsonObject(new JSONObject(), ""));
         assertNotNull(layerInfo);
         assertEquals(256, layerInfo.getWidth());
         assertEquals(256, layerInfo.getHeight());
@@ -229,9 +234,9 @@ public class WMSServerInfoTest extends PrintTestCase {
                 "        </WMT_MS_Capabilities>";
 
         InputStream stream = new ByteArrayInputStream(response.getBytes("ISO-8859-1"));
-        WMSServerInfo info = WMSServerInfo.parseCapabilities(stream);
+        WMSServiceInfo info = new WMSServiceInfo.WMSServiceInfoLoader().parseInfo(stream);
         assertEquals(true, info.isTileCache());
-        TileCacheLayerInfo layerInfo = info.getTileCacheLayer("cn");
+        TileCacheLayerInfo layerInfo = info.getTileCacheLayer("cn", null, new PJsonObject(new JSONObject(), ""));
         assertNotNull(layerInfo);
         assertEquals(256, layerInfo.getWidth());
         assertEquals(256, layerInfo.getHeight());
@@ -382,7 +387,7 @@ public class WMSServerInfoTest extends PrintTestCase {
                 "</WMT_MS_Capabilities>";
 
         InputStream stream = new ByteArrayInputStream(response.getBytes("UTF-8"));
-        WMSServerInfo info = WMSServerInfo.parseCapabilities(stream);
+        WMSServiceInfo info = new WMSServiceInfo.WMSServiceInfoLoader().parseInfo(stream);
         assertEquals(false, info.isTileCache());
     }
 
@@ -756,7 +761,7 @@ public class WMSServerInfoTest extends PrintTestCase {
                 "</WMT_MS_Capabilities>";
 
         InputStream stream = new ByteArrayInputStream(response.getBytes("UTF-8"));
-        WMSServerInfo info = WMSServerInfo.parseCapabilities(stream);
+        WMSServiceInfo info = new WMSServiceInfo.WMSServiceInfoLoader().parseInfo(stream);
         assertEquals(false, info.isTileCache());
     }
 }

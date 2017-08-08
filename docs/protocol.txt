@@ -76,6 +76,13 @@ The "SPEC" parameter is a JSON structure like that:
         geodetic: false,
         outputFilename: 'political-boundaries',
         outputFormat: 'pdf',
+        mergeableParams: {
+            cql_filter: {
+                defaultValue: 'INCLUDE',
+                separator: ';',
+                context: 'http://labs.metacarta.com/wms/vmap0'
+            }
+        },
         layers: [
             {
                 type: 'WMS',
@@ -90,6 +97,7 @@ The "SPEC" parameter is a JSON structure like that:
                 scale: 4000000,
                 dpi: 190,
                 geodetic: false,
+                strictEpsg4326: false,
                 ...CUSTOM_PARAMS...
             }
         ],
@@ -117,11 +125,17 @@ The print module will use the nearest scale and will make sure the aspect ratio 
 
 The geodetic parameter can be set to true so the scale of geodetic layers can correctly be calculated.  Certain projections (Google and Latlong for example) are based on a spheroid and therefore require **geodetic: true** in order to correctly calculate the scale.  If the geodetic parameter is not present it will be assumed to be false.
 
+The _optional_ strictEpsg4326 parameter can be set to true to control how EPSG:4326 is interpreted. This needs to be true for WMS version 1.3.0 GetMap requests. See https://www.google.ch/search?q=epsg+4326+latitude+longitude+order&oq=epsg+4326+&aqs=chrome.3.69i57j0l5.5996j0j4&sourceid=chrome&espv=210&es_sm=93&ie=UTF-8 for some links to the history and mess that is EPSG:4326.
+
 The outputFilename parameter is optional and if omitted the values used in the server's configuration will be used instead.  If it is present it will be the name of the downloaded file.  The suffix will be added if not left off in the parameter.  The date can be substituted into the filename as well if desired.  See configuration's outputFilename for more information and examples
 
 The outputFormat parameter is optional and if omitted the value 'pdf' will be used.  Only the formats returned in the info are permitted.
 
 There are two locations where custom parameters can be added. Those will be ignored by the web service but, will be accessible from the layout templates.
+
+Some layer types support merging more layers request into one, when the server is the same (for example WMS). For those, a mergeableParams section can be used to define merging strategies for some custom parameters.
+The default rule is to merge layers with identical custom parameters. Using mergeableParams, defined parameters values can be joined using a given separator and a default value if some of the layers miss the parameter.
+Mergeable parameters can have a context, that is the baseURL they can be used for (if not defined they will be used for every layer).
 
 For the format of the **layers** section, please look at the implementations pointed by mapfish.PrintProtocol.SUPPORTED_TYPES.
 
@@ -156,6 +170,67 @@ HTTP command::
   GET {PRINT_URL}/{ID}.pdf
 
 Returns the PDF. Can be called only during a limited time since the server side temporary file is deleted afterwards.
+
+Multiple maps on a single page
+******************************
+To print more than one map on a single page you need to:
+ * specify several map blocks in a page of the yaml file, each with a distinct name property value
+ * use a particular syntax in the spec to bind different rendering properties to each map block
+ 
+This is possible specifying a _maps_ object in spec root object with a distinct key - object pair for each map. The
+key will refer the map block name as defined in yaml file. The object will contain layers and srs for the named map.
+Another _maps_ object has to be specified inside the page object to describe positioning, scale and so on.
+
+.. code-block:: javascript
+
+    {
+        ...
+        maps: {
+            "main": {
+                layers: [
+                    ...
+                ],
+                srs: 'EPSG:4326'
+            },
+            "other": {
+                layers: [
+                    ...
+                ],
+                srs: 'EPSG:4326'
+            }
+        },
+        ...
+        pages: [
+            {
+                maps: {
+                    "main": {
+                        center: [6, 45.5],
+                        scale: 4000000,
+                        dpi: 190,
+                        geodetic: false,
+                        strictEpsg4326: false,
+                        ...CUSTOM_PARAMS...
+                    },
+                    "other": {
+                        center: [7.2, 38.6],
+                        scale: 1000000,
+                        dpi: 300,
+                        geodetic: false,
+                        strictEpsg4326: false,
+                        ...CUSTOM_PARAMS...
+                    }
+                }
+                
+            }
+        ],
+        ...
+    }
+
+Other config blocks have been enabled to multiple maps usage.
+The scalebar block can be bound to a specific map, specifying a name property that matches the map
+name.
+Also, in text blocks you can use the ${scale.<mapname>} placeholder to print the scale of the map
+whose name is <mapname>.
 
 Layers Params
 *************
@@ -203,7 +278,7 @@ Standard mode:
 * layer (Required) the layer name
 * version (Defaults to ``1.0.0``) WMTS protocol version
 * requestEncoding (Defaults to ``REST``) ``REST`` or ``KVP``
-* style (Required) the style name
+* style (Optional) the style name
 * dimensions (Optional) list of dimensions names
 * params (Optional) dictionary of dimensions name (capital) => value
 * matrixSet (Required) the name of the matrix set

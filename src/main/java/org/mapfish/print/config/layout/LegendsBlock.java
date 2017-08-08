@@ -18,17 +18,9 @@
  */
 package org.mapfish.print.config.layout;
 
-import com.lowagie.text.Chunk;
-import com.lowagie.text.Document;
-import com.lowagie.text.DocumentException;
-import com.lowagie.text.Element;
-import com.lowagie.text.Font;
-import com.lowagie.text.FontFactory;
-import com.lowagie.text.Phrase;
-import com.lowagie.text.pdf.BaseFont;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -45,6 +37,21 @@ import org.mapfish.print.RenderingContext;
 import org.mapfish.print.legend.LegendItemTable;
 import org.mapfish.print.utils.PJsonArray;
 import org.mapfish.print.utils.PJsonObject;
+
+import com.itextpdf.text.Chunk;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.Image;
+import com.itextpdf.text.Phrase;
+import com.itextpdf.text.pdf.BaseFont;
+import com.itextpdf.text.pdf.PdfContentByte;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfTemplate;
+import com.itextpdf.text.pdf.PdfWriter;
 
 /**
  * Bean to configure a !legends block.
@@ -280,10 +287,9 @@ public class LegendsBlock extends Block {
          */
         private float getTextWidth(String myString, Font pdfFont) {
             BaseFont baseFont = pdfFont.getBaseFont();
-            float width = baseFont == null
+            return baseFont == null
                     ? new Chunk(myString).getWidthPoint()
                     : baseFont.getWidthPoint(myString, pdfFont.getSize());
-            return width;
         }
 
         /**
@@ -291,8 +297,8 @@ public class LegendsBlock extends Block {
          *
          * @param context PDF rendering context
          * @param iconItem URL of the image
-         * @param iconMaxWidth width of the chunk
-         * @param iconMaxHeight height of the chunk
+         * @param maxIconWidth width of the chunk
+         * @param maxIconHeight height of the chunk
          * @return Chunk with image in it
          * @throws DocumentException
          */

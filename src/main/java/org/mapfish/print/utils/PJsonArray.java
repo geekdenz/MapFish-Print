@@ -72,6 +72,7 @@ public class PJsonArray extends PJsonElement {
         }
         return (float) val;
     }
+
     public double getDouble(int i) {
         double val = array.optDouble(i, Double.MAX_VALUE);
         if (val == Double.MAX_VALUE) {

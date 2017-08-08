@@ -25,6 +25,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.mapfish.print.RenderingContext;
 import org.mapfish.print.Transformer;
@@ -54,8 +56,12 @@ public abstract class TileableMapReader extends HTTPMapReader {
         double maxGeoY = transformer.getRotatedMaxGeoY();
 
         if (tileCacheLayerInfo != null) {
-            //tiled
-            transformer = fixTiledTransformer(transformer);
+            try {
+				//tiled
+				transformer = fixTiledTransformer(transformer);
+            } catch (CloneNotSupportedException ex) {
+                Logger.getLogger(TileableMapReader.class.getName()).log(Level.SEVERE, null, ex);
+            }
 
             if (transformer == null) {
                 if (LOGGER.isDebugEnabled()) {
@@ -124,37 +130,34 @@ public abstract class TileableMapReader extends HTTPMapReader {
     }
 
     /**
-     * fix the resolution to something compatible with the resolutions available in tilecache.
+     * check if client has param to force resolution and return resolution if supported by layer
+     * @return a valid resolution or 0 if no supported resolutions was found
      */
-    Transformer fixTiledTransformer(Transformer transformer) {
-        double resolution;
-
-        // if clientResolution is passed from client use it explicitly if available otherwise calculate nearest resolution
+    private double getSupportedClientResolution() {
         if (this.context.getCurrentPageParams().has("clientResolution")) {
-            float clientResolution = this.context.getCurrentPageParams().getFloat("clientResolution");
-            boolean hasServerResolution = false;
+            double clientResolution = this.context.getCurrentPageParams().getDouble("clientResolution");
             for (double serverResolution : this.tileCacheLayerInfo.getResolutions()) {
                 if (serverResolution == clientResolution) {
-                    hasServerResolution = true;
+                    return clientResolution;
                 }
             }
-            if (!hasServerResolution) {
-                return null;
-            }
-            else {
-                resolution = clientResolution;
-            }
         }
-        else {
-            final double geoWSquared = Math.pow(transformer.getGeoW(), 2);
-            final double geoHSquared = Math.pow(transformer.getGeoH(), 2);
-            final double bitmapWSquared = Math.pow(transformer.getStraightBitmapW(), 2);
-            final double bitmapHSquared = Math.pow(transformer.getStraightBitmapH(), 2);
-            double targetResolution = Math.sqrt(geoWSquared + geoHSquared) / Math.sqrt(bitmapHSquared + bitmapWSquared);
+        return 0;
+    }
+
+    /**
+     * fix the resolution to something compatible with the resolutions available in tilecache.
+     */
+    private Transformer fixTiledTransformer(Transformer transformer) throws CloneNotSupportedException {
+        double resolution = getSupportedClientResolution();
+        
+        // if no valid client resolution was found get nearest resolution
+        if (resolution == 0) {
+            double targetResolution = transformer.getGeoW() / transformer.getStraightBitmapW();
             TileCacheLayerInfo.ResolutionInfo resolutionInfo = tileCacheLayerInfo.getNearestResolution(targetResolution);
             resolution = resolutionInfo.value;
         }
-
+        
         transformer = transformer.clone();
         transformer.setResolution(resolution);
         return transformer;

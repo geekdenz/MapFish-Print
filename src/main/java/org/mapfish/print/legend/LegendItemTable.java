@@ -4,9 +4,9 @@
  */
 package org.mapfish.print.legend;
 
-import com.lowagie.text.Font;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
 import org.mapfish.print.utils.PJsonObject;
 
 /**
@@ -14,7 +14,6 @@ import org.mapfish.print.utils.PJsonObject;
  * @author Tim-Hinnerk Heuer, Landcare Research - New Zealand
  */
 public class LegendItemTable extends PdfPTable {
-
     private boolean iconBeforeName = false;
     private float spaceBefore = 0f;
     private boolean isFirst = false; // whether it is the first
@@ -52,21 +51,12 @@ public class LegendItemTable extends PdfPTable {
     }
     private Params params = new Params();
 
-    /**
-     * /PARAMS
-     */
-    public boolean isHeading() {
-        return isHeading;
-    }
-
     public LegendItemTable() {
         super(1);
     }
-
     public LegendItemTable(int numberOfColumns) {
         super(numberOfColumns);
     }
-
     /**
      * @return the iconBeforeName
      */
@@ -100,10 +90,10 @@ public class LegendItemTable extends PdfPTable {
     }
 
     /**
-     * @return the isFirst
+     * /PARAMS
      */
-    public boolean isFirst() {
-        return isFirst;
+    public boolean isHeading() {
+        return isHeading;
     }
 
     /**
@@ -153,6 +143,13 @@ public class LegendItemTable extends PdfPTable {
      */
     public void setNameCell(PdfPCell nameCell) {
         this.nameCell = nameCell;
+    }
+
+    /**
+     * @return the isFirst
+     */
+    public boolean isFirst() {
+        return isFirst;
     }
 
     /**

@@ -40,7 +40,16 @@ public class GoogleLayerInfo extends TileCacheLayerInfo {
     }
 
     @Override
-    public double getResolutionTolerance() {
-        return RESOLUTION_TOLERANCE;
+    public ResolutionInfo getNearestResolution(double targetResolution) {
+        int pos = resolutions.length - 1;
+        double result = resolutions[pos];
+        for (int i = resolutions.length - 1; i >= 0; --i) {
+            double cur = resolutions[i];
+            if (cur <= targetResolution * RESOLUTION_TOLERANCE) {
+                result = cur;
+                pos = i;
+            }
+        }
+        return new ResolutionInfo(pos, result);
     }
 }

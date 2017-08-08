@@ -1,35 +1,44 @@
 package org.mapfish.print.map.readers;
 
 import org.junit.Test;
-import org.mapfish.print.Transformer;
-import org.mapfish.print.utils.DistanceUnit;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Created by Jesse on 12/20/13.
  */
 public class TileableMapReaderTest {
     @Test
-    public void testFixTiledTransformer() throws Exception {
+    public void testGetNearestResolution() throws Exception {
+        String resolutions = "2800,1400,700,350,175,84,42,21,11.2,5.6,2.8,1.4,0.7,0.35,0.14,0.07";
+        int width = 256;
+        int height = 256;
+        double minX = 0.0;
+        double minY = 0.0;
+        double maxX = 700000.0;
+        double maxY = 1300000.0;
+        String extension = "image/png";
+        float originX = 0.0f;
+        float originY = 0.0f;
+        final TileCacheLayerInfo info = new TileCacheLayerInfo(resolutions, width, height, minX, minY, maxX, maxY,
+                extension, originX, originY);
 
-    }
+
+        for (double v : info.getResolutions()) {
+            assertEquals(v, info.getNearestResolution(v).value, 0.000001);
+
+            // test the common case where rounding gets in the way of calculating the perfect target resolution
+            assertEquals(v, info.getNearestResolution(v - 0.00001f).value, 0.000001);
+        }
 
 
-    @Test
-    public void testFixScale() throws Exception {
-        float centerX = 430552.3f;
-        float centerY = 265431.9f;
-        float paperWidth = 440.0f;
-        float paperHeight = 483.0f;
-        int scale = 75000;
-        int dpi = 300;
-        DistanceUnit unitEnum = DistanceUnit.fromString("m");
-        float rotation = 0.0f;
-        String geodeticSRS = null;
-        boolean isIntegerSvg = true;
+        // Specific bug encountered
+        assertEquals(11.2, info.getNearestResolution(11.19995f).value, 0.00001);
 
-        final Transformer transformer = new Transformer(centerX, centerY, paperWidth, paperHeight, scale, dpi, unitEnum, rotation,
-                geodeticSRS, isIntegerSvg);
-
-//        transformer.`
+        final TileCacheLayerInfo.ResolutionInfo expected = new TileCacheLayerInfo.ResolutionInfo(5, 84);
+        assertEquals(expected, info.getNearestResolution(84));
+        assertEquals(expected, info.getNearestResolution(84.001f));
+        assertEquals(expected, info.getNearestResolution(100));
+        assertEquals(expected, info.getNearestResolution(83.001f));
+        assertEquals(expected, info.getNearestResolution(84 * info.getResolutionTolerance()));
     }
 }

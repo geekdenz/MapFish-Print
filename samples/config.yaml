@@ -1,7 +1,7 @@
 #===========================================================================
 # allowed DPIs
 #===========================================================================
-dpis: [254, 190, 127, 56]
+dpis: [254, 190, 127, 91, 56]
 
 #===========================================================================
 # allowed Formats
@@ -32,6 +32,9 @@ hosts:
   - !ipMatch
     ip: www.camptocamp.org
   - !dnsMatch
+    host: mapfish-geoportal.demo-camptocamp.com
+    port: 80
+  - !dnsMatch
     host: labs.metacarta.com
     port: 80
   - !dnsMatch
@@ -39,6 +42,9 @@ hosts:
     port: 80
   - !dnsMatch
     host: tile.openstreetmap.org
+    port: 80
+  - !dnsMatch
+    host: www.geocat.ch
     port: 80
 
 security:

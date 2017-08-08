@@ -30,9 +30,9 @@ import org.mapfish.print.scalebar.Type;
 import org.mapfish.print.utils.DistanceUnit;
 import org.mapfish.print.utils.PJsonObject;
 
-import com.lowagie.text.Document;
-import com.lowagie.text.DocumentException;
-import com.lowagie.text.Element;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Element;
 
 /**
  * This is not an automated test. You have to look at the generated PDF file.
@@ -50,8 +50,8 @@ public class ScalebarTest extends PdfTestCase {
             dc.lineTo(MARGIN + 100 * i, height);
         }
         dc.stroke();*/
-        context.getLayout().getMainPage().getMap().setWidth("100");
-        context.getLayout().getMainPage().getMap().setHeight("100");
+        context.getLayout().getMainPage().getMap(null).setWidth("100");
+        context.getLayout().getMainPage().getMap(null).setHeight("100");
         ScalebarBlock block = createBaseBlock();
         draw(page1, doc, context, block);
 

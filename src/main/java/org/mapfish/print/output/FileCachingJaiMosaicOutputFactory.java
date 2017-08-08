@@ -18,6 +18,13 @@
  */
 
 package org.mapfish.print.output;
+import org.mapfish.print.utils.PJsonObject;
+import org.mapfish.print.RenderingContext;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDDocument;
+
+import org.apache.log4j.Logger;
+import com.sun.media.jai.codec.FileSeekableStream;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
@@ -33,15 +40,7 @@ import javax.imageio.ImageIO;
 import javax.media.jai.JAI;
 import javax.media.jai.RenderedOp;
 
-import org.apache.log4j.Logger;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.mapfish.print.RenderingContext;
-import org.mapfish.print.TimeLogger;
-import org.mapfish.print.utils.PJsonObject;
-
-import com.lowagie.text.DocumentException;
-import com.sun.media.jai.codec.FileSeekableStream;
+import com.itextpdf.text.DocumentException;
 
 /**
  * Similar to {@link InMemoryJaiMosaicOutputFactory} in that it uses pdf box to parse pdf.  However it writes
@@ -81,20 +80,14 @@ public class FileCachingJaiMosaicOutputFactory extends InMemoryJaiMosaicOutputFa
                 FileOutputStream tmpOut = new FileOutputStream(tmpFile);
                 RenderingContext context;
                 try {
-                    TimeLogger timeLog = TimeLogger.info(LOGGER, "PDF Creation");
                     context = doPrint(params.withOutput(tmpOut));
-                    timeLog.done();
                 } finally {
                     tmpOut.close();
                 }
 
-                TimeLogger timeLog = TimeLogger.info(LOGGER, "Pdf to image conversion");
                 List<ImageInfo> images = createImages(params.jsonSpec, tmpFile, context);
-                timeLog.done();
 
-                timeLog = TimeLogger.info(LOGGER, "Write Mosaiced Image");
                 drawImage(params.outputStream, images);
-                timeLog.done();
 
                 return context;
             } catch (IOException e) {
@@ -149,7 +142,7 @@ public class FileCachingJaiMosaicOutputFactory extends InMemoryJaiMosaicOutputFa
             PDDocument pdf = PDDocument.load(tmpFile);
             try {
                 @SuppressWarnings("unchecked")
-                List<PDPage> pages = pdf.getDocumentCatalog().getAllPages();
+				List<PDPage> pages = pdf.getDocumentCatalog().getAllPages();
 
                 for (PDPage page : pages) {
                     BufferedImage img = page.convertToImage(BufferedImage.TYPE_INT_RGB, calculateDPI(context, jsonSpec));

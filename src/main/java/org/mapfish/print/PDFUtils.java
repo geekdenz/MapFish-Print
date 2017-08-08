@@ -19,31 +19,22 @@
 
 package org.mapfish.print;
 
-import com.lowagie.text.BadElementException;
-import com.lowagie.text.Chunk;
-import com.lowagie.text.DocumentException;
-import com.lowagie.text.Element;
-import com.lowagie.text.Font;
-import com.lowagie.text.Image;
-import com.lowagie.text.Phrase;
-import com.lowagie.text.pdf.BaseFont;
-import com.lowagie.text.pdf.PdfContentByte;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfTemplate;
-import java.awt.Graphics2D;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.*;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
+
+import com.itextpdf.awt.PdfGraphics2D;
+import com.itextpdf.text.BadElementException;
+import com.itextpdf.text.Chunk;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.Image;
+import com.itextpdf.text.Phrase;
+import com.itextpdf.text.pdf.BaseFont;
+import com.itextpdf.text.pdf.PdfContentByte;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfTemplate;
 import org.apache.batik.bridge.BridgeContext;
 import org.apache.batik.bridge.DocumentLoader;
 import org.apache.batik.bridge.GVTBuilder;
@@ -51,16 +42,32 @@ import org.apache.batik.bridge.UserAgent;
 import org.apache.batik.bridge.UserAgentAdapter;
 import org.apache.batik.dom.svg.SAXSVGDocumentFactory;
 import org.apache.batik.dom.svg.SVGDocumentFactory;
+import java.io.ByteArrayOutputStream;
 import org.apache.batik.gvt.GraphicsNode;
+import java.io.File;
 import org.apache.batik.util.XMLResourceDescriptor;
+import java.io.IOException;
 import org.apache.commons.httpclient.Header;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import org.apache.commons.httpclient.methods.GetMethod;
+import java.text.SimpleDateFormat;
 import org.apache.log4j.Logger;
+import java.util.Date;
 import org.mapfish.print.config.layout.Block;
+import java.util.HashMap;
 import org.mapfish.print.config.layout.HorizontalAlign;
+import java.util.List;
 import org.mapfish.print.config.layout.MapBlock;
+import java.util.Map;
 import org.mapfish.print.config.layout.ScalebarBlock;
+import java.util.regex.Matcher;
 import org.mapfish.print.config.layout.TableConfig;
+import java.util.regex.Pattern;
 import org.mapfish.print.utils.PJsonObject;
 import org.w3c.dom.svg.SVGDocument;
 
@@ -178,7 +185,15 @@ public class PDFUtils {
     private static Image loadImageFromUrl(final RenderingContext context, final URI uri, final boolean alwaysThrowExceptionOnError)
             throws
             IOException, DocumentException {
-        if (!uri.isAbsolute()) {
+        File uriAsFile = null;
+        try {
+            uriAsFile = new File(uri.toString());
+        } catch (Throwable t) {
+            // ignore;
+        }
+        if (uriAsFile != null && uriAsFile.exists()) {
+            return Image.getInstance(uriAsFile.toURI().toURL());
+        } else if (!uri.isAbsolute()) {
             //Assumption is that the file is on the local file system
             return Image.getInstance(uri.toString());
         } else if ("file".equalsIgnoreCase(uri.getScheme())) {
@@ -241,6 +256,8 @@ public class PDFUtils {
                     }
                 } else {
                     GetMethod getMethod = null;
+                    MetricRegistry registry = context.getConfig().getMetricRegistry();
+                    final Timer.Context timer = registry.timer("http_" + uri.getAuthority()).time();
                     try {
                         getMethod = new GetMethod(uri.toString());
                         for (Map.Entry<String, String> entry : context.getHeaders().entrySet()) {
@@ -259,6 +276,7 @@ public class PDFUtils {
                         }
                         data = getMethod.getResponseBody();
                     } finally {
+                        timer.close();
                         if (getMethod != null) {
                             getMethod.releaseConnection();
                         }
@@ -398,7 +416,7 @@ public class PDFUtils {
 
     private static final Pattern VAR_REGEXP = Pattern.compile("\\$\\{([^}]+)\\}");
 
-    public static Phrase renderString(RenderingContext context, PJsonObject params, String val, com.lowagie.text.Font font) throws BadElementException {
+    public static Phrase renderString(RenderingContext context, PJsonObject params, String val, com.itextpdf.text.Font font, String mapName) throws BadElementException {
         Phrase result = new Phrase();
         while (true) {
             Matcher matcher = VAR_REGEXP.matcher(val);
@@ -409,7 +427,7 @@ public class PDFUtils {
                 if (varName.equals("pageTot")) {
                     result.add(context.getCustomBlocks().getOrCreateTotalPagesBlock(font));
                 } else {
-                    value = getContextValue(context, params, varName);
+                    value = getContextValue(context, params, varName, mapName);
                     result.add(value);
                 }
                 val = val.substring(matcher.end());
@@ -424,7 +442,7 @@ public class PDFUtils {
     /**
      * Evaluates stuff like "toto ${titi}"
      */
-    public static String evalString(RenderingContext context, PJsonObject params, String val) {
+    public static String evalString(RenderingContext context, PJsonObject params, String val, String mapName) {
         if (val == null) {
             return null;
         }
@@ -433,7 +451,7 @@ public class PDFUtils {
             Matcher matcher = VAR_REGEXP.matcher(val);
             if (matcher.find()) {
                 result.append(val.substring(0, matcher.start()));
-                result.append(getContextValue(context, params, matcher.group(1)));
+                result.append(getContextValue(context, params, matcher.group(1), mapName));
                 val = val.substring(matcher.end());
             } else {
                 break;
@@ -480,7 +498,7 @@ public class PDFUtils {
         return val;
     }
 
-    private static String getContextValue(RenderingContext context, PJsonObject params, String key) {
+    private static String getContextValue(RenderingContext context, PJsonObject params, String key, String mapName) {
         String result = null;
         if (context != null) {
             Matcher matcher;
@@ -491,11 +509,14 @@ public class PDFUtils {
             } else if (key.startsWith("now ")) {
                 return formatTime(context, key);
             } else if ((matcher = FORMAT_PATTERN.matcher(key)) != null && matcher.matches()) {
-                return format(context, params, matcher);
+                return format(context, params, matcher, mapName);
             } else if (key.equals("configDir")) {
                 return context.getConfigDir().replace('\\', '/');
-            } else if (key.equals("scale")) {
-                return Integer.toString(context.getLayout().getMainPage().getMap().createTransformer(context, params).getScale());
+            } else if (key.equals("scale") || key.startsWith("scale.")) {
+                if(key.startsWith("scale.")) {
+                    mapName = key.substring(6);
+                }
+                return Integer.toString((int)context.getLayout().getMainPage().getMap(mapName).createTransformer(context, params).getScale());
             }
             result = context.getGlobalParams().optString(key);
         }
@@ -505,27 +526,32 @@ public class PDFUtils {
         return result;
     }
 
-    private static String format(RenderingContext context, PJsonObject params, Matcher matcher) {
-        final String valueTxt = getContextValue(context, params, matcher.group(4));
+    private static String format(RenderingContext context, PJsonObject params, Matcher matcher, String mapName) {
+        final String valueTxt = getContextValue(context, params, matcher.group(4), mapName);
         final Object value;
-        switch (matcher.group(3).charAt(0)) {
-            case 'd':
-            case 'o':
-            case 'x':
-            case 'X':
-                value = Long.valueOf(valueTxt);
-                break;
-            case 'e':
-            case 'E':
-            case 'f':
-            case 'g':
-            case 'G':
-            case 'a':
-            case 'A':
-                value = Double.valueOf(valueTxt);
-                break;
-            default:
-                value = valueTxt;
+        try {
+            switch (matcher.group(3).charAt(0)) {
+                case 'd':
+                case 'o':
+                case 'x':
+                case 'X':
+                    value = Math.round(Double.valueOf(valueTxt));
+                    break;
+                case 'e':
+                case 'E':
+                case 'f':
+                case 'g':
+                case 'G':
+                case 'a':
+                case 'A':
+                    value = Double.valueOf(valueTxt);
+                    break;
+                default:
+                    value = valueTxt;
+            }
+        } catch (Throwable e) {
+            context.addError(new RuntimeException("Error converting valueTxt: '" + valueTxt + "' to a number.  Pattern: " + matcher.group(3)));
+            return valueTxt;
         }
         try {
             return String.format(matcher.group(1), value);
@@ -650,17 +676,17 @@ public class PDFUtils {
 
     public static BaseFont getBaseFont(String fontFamily, String fontSize,
             String fontWeight) {
-        int myFontValue;
+        Font.FontFamily myFontValue;
         float myFontSize;
         int myFontWeight;
         if (fontFamily.toUpperCase().contains("COURIER")) {
-            myFontValue = Font.COURIER;
+            myFontValue = Font.FontFamily.COURIER;
         } else if (fontFamily.toUpperCase().contains("HELVETICA")) {
-            myFontValue = Font.HELVETICA;
+            myFontValue = Font.FontFamily.HELVETICA;
         } else if (fontFamily.toUpperCase().contains("ROMAN")) {
-            myFontValue = Font.TIMES_ROMAN;
+            myFontValue = Font.FontFamily.TIMES_ROMAN;
         } else {
-            myFontValue = Font.HELVETICA;
+            myFontValue = Font.FontFamily.HELVETICA;
         }
         myFontSize = (float) Double.parseDouble(fontSize.toLowerCase()
                 .replaceAll("px", ""));
@@ -674,8 +700,7 @@ public class PDFUtils {
             myFontWeight = Font.NORMAL;
         }
         Font pdfFont = new Font(myFontValue, myFontSize, myFontWeight);
-        BaseFont bf = pdfFont.getCalculatedBaseFont(false);
-        return bf;
+        return pdfFont.getCalculatedBaseFont(false);
     }
 
     public static int getHorizontalAlignment(String labelAlign) {
@@ -744,7 +769,7 @@ public class PDFUtils {
             final float svgFactor = 25.4f / userAgent.getPixelUnitToMillimeter() / 72f; // 25.4 mm = 1 inch TODO: Might need to get 72 from somewhere else?
             //float svgFactor = (float) Toolkit.getDefaultToolkit().getScreenResolution() / 72f; // this only works with AWT, i.e. when a window environment is running
             PdfTemplate map = dc.createTemplate(svgWidth * svgFactor, svgHeight * svgFactor);
-            Graphics2D g2d = map.createGraphics(svgWidth * svgFactor, svgHeight * svgFactor);
+            PdfGraphics2D g2d = new PdfGraphics2D(map, svgWidth * svgFactor, svgHeight * svgFactor);
             graphics.paint(g2d);
             g2d.dispose();
             image = Image.getInstance(map);

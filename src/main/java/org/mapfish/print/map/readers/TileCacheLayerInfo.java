@@ -20,6 +20,7 @@
 package org.mapfish.print.map.readers;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,6 +31,8 @@ import org.mapfish.print.utils.PJsonArray;
  * Holds the information we need to manage a tilecache layer.
  */
 public class TileCacheLayerInfo {
+    private List<String> versions;
+
     /**
      * Tolerance we accept when trying to determine the nearest resolution.
      */
@@ -51,15 +54,10 @@ public class TileCacheLayerInfo {
     protected final double originY;
     protected String extension;
 
-    public TileCacheLayerInfo(String resolutions, int width, int height, double minX, double minY, double maxX, double maxY, String format,
-            double originX, double originY) {
-        String[] resolutionsTxt = RESOLUTIONS_REGEXP.split(resolutions);
-        this.resolutions = new double[resolutionsTxt.length];
-        for (int i = 0; i < resolutionsTxt.length; ++i) {
-            this.resolutions[i] = Double.parseDouble(resolutionsTxt[i]);
-        }
+    public TileCacheLayerInfo(double[] resolutions, int width, int height, double minX, double minY, double maxX, double maxY, String format,
+                              double originX, double originY) {
+        this.resolutions = resolutions;
         sortResolutions();
-
         this.width = width;
         this.height = height;
         this.minX = minX;
@@ -82,12 +80,30 @@ public class TileCacheLayerInfo {
         }
     }
 
-    public TileCacheLayerInfo(String resolutions, int width, int height, double minX, double minY, double maxX, double maxY, String format) {
+    public TileCacheLayerInfo(double[] resolutions, int width, int height, double minX, double minY, double maxX, double maxY, String format) {
         this(resolutions, width, height, minX, minY, maxX, maxY, format, minX, minY);
     }
 
-    public TileCacheLayerInfo(PJsonArray resolutions, int width, int height, double minX, double minY, double maxX, double maxY, String extension,
-            double originX, double originY) {
+    private static double[] parseResolutions(String resolutions) {
+        String[] resolutionsTxt = RESOLUTIONS_REGEXP.split(resolutions);
+        double[] resolutionsDouble = new double[resolutionsTxt.length];
+        for (int i = 0; i < resolutionsTxt.length; ++i) {
+            resolutionsDouble[i] = Double.parseDouble(resolutionsTxt[i]);
+        }
+        return resolutionsDouble;
+    }
+
+    public TileCacheLayerInfo(String resolutions, int width, int height, double minX, double minY, double maxX, double maxY, String format,
+                              double originX, double originY) {
+        this(parseResolutions(resolutions), width, height, minX, minY, maxX, maxY, format, originX, originY);
+    }
+
+    public TileCacheLayerInfo(String resolutions, int width, int height, float minX, float minY, float maxX, float maxY, String format) {
+        this(resolutions, width, height, minX, minY, maxX, maxY, format, minX, minY);
+    }
+
+    public TileCacheLayerInfo(PJsonArray resolutions, int width, int height, float minX, float minY, float maxX, float maxY, String extension,
+            float originX, float originY) {
         this.resolutions = new double[resolutions.size()];
         for (int i = 0; i < resolutions.size(); ++i) {
             this.resolutions[i] = resolutions.getDouble(i);
@@ -106,7 +122,7 @@ public class TileCacheLayerInfo {
     }
 
     public TileCacheLayerInfo(PJsonArray resolutions, int width, int height, double minX, double minY, double maxX, double maxY, String extension) {
-        this(resolutions, width, height, minX, minY, maxX, maxY, extension, minX, minY);
+        this(resolutions, width, height, (float) minX, (float) minY, (float) maxX, (float) maxY, extension, (float) minX, (float) minY);
     }
 
     public int getWidth() {
@@ -117,10 +133,10 @@ public class TileCacheLayerInfo {
         return height;
     }
 
-    public final ResolutionInfo getNearestResolution(double targetResolution) {
+    public ResolutionInfo getNearestResolution(double targetResolution) {
         int pos = resolutions.length - 1;
         double result = resolutions[pos];
-        final double tolerance = getResolutionTolerance();
+        final double tolerance = this.getResolutionTolerance();
         for (int i = resolutions.length - 1; i >= 0; --i) {
             double cur = resolutions[i];
 
@@ -164,11 +180,7 @@ public class TileCacheLayerInfo {
             if (o == null || getClass() != o.getClass()) return false;
 
             ResolutionInfo that = (ResolutionInfo) o;
-
-            if (index != that.index) return false;
-            if (Double.compare(that.value, value) != 0) return false;
-
-            return true;
+            return index == that.index && Double.compare(that.value, value) == 0;
         }
 
         @Override
@@ -260,16 +272,15 @@ public class TileCacheLayerInfo {
         if (o == null || getClass() != o.getClass()) return false;
 
         TileCacheLayerInfo info = (TileCacheLayerInfo) o;
+		
 
         if (height != info.height) return false;
         if (Double.compare(info.maxX, maxX) != 0) return false;
         if (Double.compare(info.maxY, maxY) != 0) return false;
         if (Double.compare(info.minX, minX) != 0) return false;
         if (Double.compare(info.minY, minY) != 0) return false;
-        if (Double.compare(info.originX, originX) != 0) return false;
-        if (Double.compare(info.originY, originY) != 0) return false;
         if (width != info.width) return false;
-        if (extension != null ? !extension.equals(info.extension) : info.extension != null) return false;
+        if (!extension.equals(info.extension)) return false;
         if (!Arrays.equals(resolutions, info.resolutions)) return false;
 
         return true;

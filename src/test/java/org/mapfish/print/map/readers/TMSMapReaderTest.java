@@ -12,6 +12,7 @@ import org.mapfish.print.utils.PJsonObject;
 import org.pvalsecc.misc.FileUtilities;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +20,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class TmsMapReaderTest extends MapTestBasic {
+public class TMSMapReaderTest extends MapTestBasic {
 
     PJsonObject tmsSpec;
     TmsMapReader tmsReader;
@@ -29,11 +30,8 @@ public class TmsMapReaderTest extends MapTestBasic {
     public void setUp() throws Exception {
         super.setUp();
 
-        tmsSpec = MapPrinter.parseSpec(FileUtilities.readWholeTextFile(new File(TmsMapReaderTest.class.getClassLoader()
-                .getResource("layers/tms_layer_spec.json").getFile())));
-
+        tmsSpec = loadJson("layers/tms_layer_spec.json");
     }
-
 
     @Test
     public void testNoOriginDefault0_0() throws JSONException {
@@ -148,7 +146,7 @@ public class TmsMapReaderTest extends MapTestBasic {
         String geodeticSRS = null;
         boolean isIntegerSvg = true;
         Transformer transformer = new Transformer(centerX, centerY, paperWidth, paperHeight, scale, dpi, unitEnum,
-                rotation, geodeticSRS, isIntegerSvg);
+                rotation, geodeticSRS, isIntegerSvg, false);
 
         float minGeoX = 424345.6f;
         float minGeoY = 258048.0f;
